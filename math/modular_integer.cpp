@@ -1,3 +1,15 @@
+template<typename T>
+T pot(T a, int e) {
+    T r = 1;
+    while (e) {
+        if (e%2) r *= a;
+
+        a *= a;
+        e /= 2;
+    }
+    return r;
+}
+
 struct int_m {
     constexpr int_m(): n(0) {}
     constexpr int_m(int n): n(n) {}
@@ -24,16 +36,6 @@ int_m operator*(int a, int_m b) { return (a * b.n)%mod; }
 int_m operator*(int_m a, int_m b) { return (a.n * b.n)%mod; }
 int_m& operator*=(int_m& a, int b) { a.n *= b; a.n %= mod; return a; }
 
-int_m pot(int_m a, int e) {
-    int_m r = 1;
-    while (e) {
-        if (e%2) r *= a;
-
-        a *= a;
-        e /= 2;
-    }
-    return r;
-}
 int_m inv(int_m x) { return pot(x, mod - 2); }
 
 int_m operator/(int_m a, int b) { return a * inv(b); }
