@@ -1,13 +1,16 @@
-template<int n, int m, class T = int>
+// Matrix (thiagomm) {{{
+
+#include <type_traits>
+
+template<int n, int m, typename T = int>
 struct mat {
     constexpr T& operator()(int i, int j) { return M[i][j]; }
     constexpr T const& operator()(int i, int j) const { return M[i][j]; }
 
-    constexpr int rows() const { return n; }
-    constexpr int cols() const { return m; }
+    static constexpr int rows() { return n; }
+    static constexpr int cols() { return m; }
 
-    constexpr static mat<n, m, T> id() {
-        static_assert(n == m, "Matrix must be a square matrix!");
+    constexpr static mat<n, m, T> id(typename std::enable_if<n == m>::type* = 0) {
         mat<n, m, T> res;
         for (int i = 0; i < n; i++) {
             res(i, i) = 1;
@@ -18,7 +21,7 @@ struct mat {
     T M[n][m] {0};
 };
 
-template<int n, int m, class T>
+template<int n, int m, typename T>
 constexpr mat<n, m, T> operator+(mat<n, m, T> const& a, mat<n, m, T> const& b) {
     mat<n, m, T> c;
     for (int i = 0; i < n; i++) {
@@ -29,7 +32,7 @@ constexpr mat<n, m, T> operator+(mat<n, m, T> const& a, mat<n, m, T> const& b) {
     return c;
 }
 
-template<int n, int m, class T>
+template<int n, int m, typename T>
 constexpr mat<n, m, T>& operator+=(mat<n, m, T>& a, mat<n, m, T> const& b) {
     for (int i = 0; i < n; i++) {
         for (int j = 0; j < m; j++) {
@@ -39,7 +42,7 @@ constexpr mat<n, m, T>& operator+=(mat<n, m, T>& a, mat<n, m, T> const& b) {
     return a;
 }
 
-template<int n, int m, int l, class T>
+template<int n, int m, int l, typename T>
 constexpr mat<n, m, T> operator*(mat<n, l, T> const& a, mat<l, m, T> const& b) {
     mat<n, m, T> c;
     for (int i = 0; i < n; i++) {
@@ -52,20 +55,15 @@ constexpr mat<n, m, T> operator*(mat<n, l, T> const& a, mat<l, m, T> const& b) {
     return c;
 }
 
-template<int n, int m, class T>
+template<int n, int m, typename T>
 constexpr mat<n, m, T>& operator*=(mat<n, m, T>& a, mat<m, m, T> const& b) {
     a = a * b;
     return a;
 }
 
-template<int n, class T>
-constexpr mat<n, n, T> pot(mat<n, n, T> a, int e) {
-    mat<n, n, T> r = mat<n, n, T>::id();
-    while (e) {
-        if (e%2) r *= a;
-
-        e /= 2;
-        a *= a;
-    }
-    return r;
+template <int n, typename T>
+constexpr mat<n, n, T> mul_identity(mat<n, n, T>*) {
+    return mat<n, n, T>::id();
 }
+
+// }}}
