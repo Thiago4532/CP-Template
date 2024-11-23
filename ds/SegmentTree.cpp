@@ -4,7 +4,7 @@
 // Segment Tree Utils {{{
 #ifndef _TMM_SEGUTIL
 #define _TMM_SEGUTIL
-namespace segutil {
+namespace segu {
 
 template<typename T>
 T adl_merge(T const& a, T const& b) { return merge(a, b); }
@@ -19,20 +19,13 @@ T mul(T const& a, T const& b) { return a * b; }
 template<typename T>
 void assign(T& a, T const& b) { a = b; }
 template<typename T>
-void add(T& a, T const& b) { return a += b; }
+void add(T& a, T const& b) { a += b; }
 
 template<typename T, typename U>
 void updater(T& a, U const& b) { a = b; } // default updater
 template<typename T>
 void adl_updater(T& a, T const& b) { updater(a, b); }
 
-template<auto F>
-struct fwrap {
-    template<typename... Args>
-    constexpr decltype(auto) operator()(Args&&... args) const {
-        return F(std::forward<Args>(args)...);
-    }
-};
 #endif
 
 }
@@ -40,8 +33,8 @@ struct fwrap {
 
 template<
     typename T,
-    auto Merge = segutil::adl_merge<T>,
-    auto Updater = segutil::adl_updater<T>
+    auto Merge = segu::adl_merge<T>,
+    auto Updater = segu::adl_updater<T>
 >
 class SegTree {
 public:
@@ -62,77 +55,99 @@ public:
     template<typename F>
     void build(int n, F&& getter) {
         init(n);
-        return build(getter, 1, 1, n);
+        return build(getter, root());
     }
 
-    template<auto __Updater, typename U>
+    template<typename U>
     void update(int p, U const& v) {
-        return update<U>(p, v, 1, 1, n, segutil::fwrap<__Updater>{});
+        auto f = [&v](T& t) { Updater(t, v); };
+        return update(p, f, root());
     }
 
-    template<typename U, typename F>
-    void update(int p, U const& v, F&& upd) {
-        return update<U>(p, v, 1, 1, n, std::forward<F>(upd));
-    }
-
-    void update(int p, T const& v) {
-        return update<T>(p, v, 1, 1, n, segutil::fwrap<Updater>{});
+    template<typename F>
+    void update2(int p, F&& upd) {
+        return update(p, upd, root());
     }
 
     T query(int l, int r) const {
-        return query(l, r, 1, 1, n);
+        return query(l, r, root());
+    }
+
+    T get(int p) const {
+        node_index index = get(p, root());
+        return tree[*index];
     }
 
 // private:
+    struct node_index {
+        int index;
+        int ini, fim;
+        int meio() const { return ini + (fim - ini)/2; }
+
+        bool is_leaf() const { return ini == fim; }
+
+        inline node_index L() const { return node_index {2*index, ini, meio()}; }
+        inline node_index R() const { return node_index {2*index+1, meio()+1, fim}; }
+
+        inline int operator*() const { return index; }
+        inline node_index operator-() const { return L(); }
+        inline node_index operator+() const { return R(); }
+        inline int operator--() const { return *L(); }
+        inline int operator++() const { return *R(); }
+    };
+    node_index root() const { return {1, 1, n}; }
+
     template<typename F>
-    void build(F&& getter, int seg, int ini, int fim) {
-        if (ini == fim) {
-            tree[seg] = getter(ini);
+    void build(F&& getter, node_index seg) {
+        if (seg.is_leaf()) {
+            tree[*seg] = getter(seg.ini);
             return;
         }
 
-        int meio = (ini + fim) / 2;
-        int L = 2 * seg, R = 2 * seg + 1;
-        build(getter, L, ini, meio);
-        build(getter, R, meio + 1, fim);
-        tree[seg] = Merge(tree[L], tree[R]);
+        build(getter, -seg);
+        build(getter, +seg);
+        tree[*seg] = Merge(tree[--seg], tree[++seg]);
     }
 
-    template<typename U, typename F>
-    void update(int p, U const& v, int seg, int ini, int fim, F&& upd) {
-        if (ini == fim) {
-            upd(tree[seg], v);
+    template<typename F>
+    void update(int p, F&& upd, node_index seg) {
+        if (seg.is_leaf()) {
+            upd(tree[*seg]);
             return;
         }
 
-        int meio = (ini + fim) / 2;
-        int L = 2 * seg, R = 2 * seg + 1;
-
-        if (p <= meio)
-            update<U>(p, v, L, ini, meio, std::forward<F>(upd));
+        if (p <= seg.meio())
+            update<F>(p, upd, -seg);
         else
-            update<U>(p, v, R, meio + 1, fim, std::forward<F>(upd));
-        tree[seg] = Merge(tree[L], tree[R]);
+            update<F>(p, upd, +seg);
+        tree[*seg] = Merge(tree[--seg], tree[++seg]);
     }
 
-    T query(int l, int r, int seg, int ini, int fim) const {
-        if (l <= ini && fim <= r)
-            return tree[seg];
+    T query(int l, int r, node_index seg) const {
+        if (l <= seg.ini && seg.fim <= r)
+            return tree[*seg];
 
-        int meio = (ini + fim) / 2;
-        int L = 2 * seg, R = 2 * seg + 1;
-
+        int meio = seg.meio();
         if (r <= meio)
-            return query(l, r, L, ini, meio);
+            return query(l, r, -seg);
         if (l > meio)
-            return query(l, r, R, meio + 1, fim);
+            return query(l, r, +seg);
 
         return Merge(
-            query(l, r, L, ini, meio),
-            query(l, r, R, meio + 1, fim)
+            query(l, r, -seg),
+            query(l, r, +seg)
         );
     }
-    
+
+    node_index get(int p, node_index seg) const {
+        if (seg.is_leaf())
+            return seg;
+
+        if (p <= seg.meio())
+            return get(p, -seg);
+        return get(p, +seg);
+    }
+
     vector<T> tree;
     int n;
 };
